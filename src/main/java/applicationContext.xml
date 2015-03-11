@@ -9,4 +9,19 @@
     <bean id="geopkgGetFeatureOutputFormat" class="org.geoserver.vectortile.VectorTileGetFeatureOutputFormat">
       <constructor-arg ref="geoServer" />
     </bean>
+    
+        <bean id="hello" class="org.geoserver.vectortile.HelloResource">
+        	<constructor-arg ref="geoServer"/>
+        </bean>
+
+    <bean id="helloMapping" class="org.geoserver.rest.RESTMapping">
+       <property name="routes">
+          <map>
+            <entry>
+              <key><value>/hello/{name}/{z}/{x}/{y}.{format}</value></key>
+              <value>hello</value>
+            </entry>
+         </map>
+      </property>
+    </bean>
 </beans>
