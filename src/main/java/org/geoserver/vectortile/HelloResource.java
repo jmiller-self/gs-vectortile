@@ -1,11 +1,14 @@
 package org.geoserver.vectortile;
 
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
 import javax.xml.namespace.QName;
 
+import org.apache.commons.io.IOUtils;
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.CatalogInfo;
 import org.geoserver.catalog.FeatureTypeInfo;
@@ -33,6 +36,8 @@ import org.restlet.data.MediaType;
 import org.restlet.data.Request;
 import org.restlet.data.Response;
 import org.restlet.data.Status;
+import org.restlet.resource.InputRepresentation;
+import org.restlet.resource.Representation;
 
 
 public class HelloResource extends AbstractResource {
@@ -46,6 +51,7 @@ public class HelloResource extends AbstractResource {
 
 	   List<DataFormat> formats = new ArrayList();
 	   formats.add(new StringFormat( MediaType.TEXT_PLAIN ));
+	   
 
 	   return formats;
    }
@@ -67,6 +73,14 @@ public class HelloResource extends AbstractResource {
 		          fti.getFeatureSource(null,null);
        // FeatureCollection<? extends FeatureType, ? extends Feature> features = source.getFeatures(filter);
 		FeatureCollection fc = grabFeaturesInBoundingBox(source,z,x,y);
+		VectorTile vt = new VectorTile();
+		vt.add(fc, name, x, y, z);
+	       InputStream temp = new FileInputStream(vt.getFile());
+	       
+	        
+	       Representation representation = new InputRepresentation(temp, MediaType.APPLICATION_OCTET_STREAM);
+	       getRequest().setEntity(representation);
+	        vt.getFile().delete();
 	} catch (IOException e) {
 		// TODO Auto-generated catch block
 		e.printStackTrace();
@@ -95,38 +109,11 @@ public class HelloResource extends AbstractResource {
 	    
 	    
 	    //ReferencedEnvelope bbox = new ReferencedEnvelope(x1, y1, x2, y2, targetCRS);
-	    ReferencedEnvelope bbox = tileAddressToBBox(z,x,y, targetCRS);
+	    ReferencedEnvelope bbox = VectorTile.tileAddressToBBox(z,x,y, targetCRS);
 	    
 	    Filter filter = ff.bbox(ff.property(geometryPropertyName), bbox);
 	    return (SimpleFeatureCollection) featureSource.getFeatures(filter);
 	}
-private ReferencedEnvelope tileAddressToBBox(int z, int x, int y, CoordinateReferenceSystem targetCRS) {
-	int x1 = 0;
-	int y1=0;
-	int x2=0;
-	int y2=0;
-	/* From http://www.maptiler.org/google-maps-coordinates-tile-bounds-projection/
-	 * minx, miny = self.PixelsToMeters( tx*self.tileSize, ty*self.tileSize, zoom )
-	        maxx, maxy = self.PixelsToMeters( (tx+1)*self.tileSize, (ty+1)*self.tileSize, zoom )
-	        return ( minx, miny, maxx, maxy ) 
-	        
-	  def PixelsToMeters(self, px, py, zoom):
-        "Converts pixel coordinates in given zoom level of pyramid to EPSG:900913"
 
-        res = self.Resolution( zoom )
-        mx = px * res - self.originShift
-        my = py * res - self.originShift
-        return mx, my
-        
-               "Initialize the TMS Global Mercator pyramid"
-        self.tileSize = 256
-        self.initialResolution = 2 * math.pi * 6378137 / self.tileSize
-        # 156543.03392804062 for tileSize 256 pixels
-        self.originShift = 2 * math.pi * 6378137 / 2.0
-        # 20037508.342789244
-	        */
-    return new ReferencedEnvelope(x1, y1, x2, y2, targetCRS);
-
-}
 
 }
