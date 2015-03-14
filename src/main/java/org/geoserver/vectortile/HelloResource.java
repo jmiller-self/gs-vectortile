@@ -36,6 +36,7 @@ import org.restlet.data.MediaType;
 import org.restlet.data.Request;
 import org.restlet.data.Response;
 import org.restlet.data.Status;
+import org.restlet.resource.FileRepresentation;
 import org.restlet.resource.InputRepresentation;
 import org.restlet.resource.Representation;
 
@@ -75,11 +76,16 @@ public class HelloResource extends AbstractResource {
 		FeatureCollection fc = grabFeaturesInBoundingBox(source,z,x,y);
 		VectorTile vt = new VectorTile();
 		vt.add(fc, name, x, y, z);
-	       InputStream temp = new FileInputStream(vt.getFile());
+	       //InputStream temp = new FileInputStream(vt.getFile());
 	       
 	        
-	       Representation representation = new InputRepresentation(temp, MediaType.APPLICATION_OCTET_STREAM);
-	       getRequest().setEntity(representation);
+	      // Representation representation = new InputRepresentation(temp, MediaType.APPLICATION_OCTET_STREAM);
+		 
+		 
+		    FileRepresentation rep = new FileRepresentation(vt.getFile(), MediaType.APPLICATION_OCTET_STREAM, -1); 
+  
+		    
+	       getResponse().setEntity(rep);
 	        vt.getFile().delete();
 	} catch (IOException e) {
 		// TODO Auto-generated catch block
