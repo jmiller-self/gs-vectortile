@@ -22,11 +22,18 @@ import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.feature.FeatureIterator;
+import org.geotools.geometry.jts.JTS;
 import org.geotools.geometry.jts.ReferencedEnvelope;
+import org.geotools.referencing.CRS;
 import org.opengis.feature.Property;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.type.FeatureType;
+import org.opengis.geometry.MismatchedDimensionException;
+import org.opengis.referencing.FactoryException;
+import org.opengis.referencing.NoSuchAuthorityCodeException;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
+import org.opengis.referencing.operation.MathTransform;
+import org.opengis.referencing.operation.TransformException;
 
 import com.google.common.collect.Lists;
 import com.vividsolutions.jts.geom.Coordinate;
@@ -68,6 +75,7 @@ public class VectorTile {
 		try {
 			fos = new FileOutputStream(file);
 			fos.write(encoded);	
+			fos.flush();
 		} catch (FileNotFoundException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -85,7 +93,7 @@ public class VectorTile {
 		
 	}
 	
-	public void add(FeatureCollection featureCollection, String layerName, int x, int y, int z){
+	public void add(FeatureCollection featureCollection,CoordinateReferenceSystem sourceCRS, String layerName, int x, int y, int z){
 		
 		VectorTileEncoder encoder = new VectorTileEncoder();
 		
@@ -104,8 +112,8 @@ public class VectorTile {
         	Collection<Property>properties = sf.getProperties();
         	Map<String,Object>attributes = propertiesToAttributes(properties);
         	Geometry geometry = (Geometry) sf.getDefaultGeometry();
-        	Geometry tilegeometry = convertMapCoordsToTileCoords(geometry,z);
-        	encoder.addFeature(layerName, attributes, tilegeometry);
+        	Geometry tilegeometry = convertMapCoordsToTileCoords(geometry,z,sourceCRS);
+        	encoder.addFeature(layerName, attributes, tilegeometry); 
         }
 			
 		
@@ -139,7 +147,28 @@ public class VectorTile {
     	
     }
     public static Geometry convertMapCoordsToTileCoords(Geometry geometry, 
-			int z) {
+			int z,CoordinateReferenceSystem sourceCRS)  {
+    	//need to make sure these are 900913
+    	Geometry targetGeometry = null;
+
+    	try {
+	    	CoordinateReferenceSystem targetCRS = CRS.decode("EPSG:900913");
+	    	MathTransform transform = CRS.findMathTransform(sourceCRS, targetCRS);
+			targetGeometry = JTS.transform( geometry, transform);
+		} catch (MismatchedDimensionException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (TransformException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (NoSuchAuthorityCodeException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (FactoryException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+    	
     	//self.originShift = 2 * math.pi * 6378137 / 2.0
     	//self.initialResolution = 2 * math.pi * 6378137 / self.tileSize
     	 //  def Resolution(self, zoom ):
@@ -150,28 +179,31 @@ public class VectorTile {
        // res = self.Resolution( zoom )
        // px = (mx + self.originShift) / res
        // py = (my + self.originShift) / res
-    	Geometry geomout = null;
-    	double res = resolution(z);
-    	Coordinate[]coords = geometry.getCoordinates();
-    	Coordinate[]coordsout = new Coordinate[coords.length];
-    	for(int i=0;i<coords.length;i++){
-    		Coordinate coord = coords[i];
-    		double px = coord.x;
-    		double py = coord.y;
-    		double pxout = (px + originShift)/res;
-    		double pyout = (py+originShift)/res;
-    		coordsout[i] = new Coordinate(pxout,pyout);
+    	
+    	if(targetGeometry!=null){
+    	
+	    	double res = resolution(z);
+	    	Coordinate[]coords = geometry.getCoordinates();
+	    	Coordinate[]coordsout = new Coordinate[coords.length];
+	    	for(int i=0;i<coords.length;i++){
+	    		Coordinate coord = coords[i];
+	    		double px = coord.x;
+	    		double py = coord.y;
+	    		double pxout = (px + originShift)/res;
+	    		double pyout = (py+originShift)/res;
+	    		coordsout[i] = new Coordinate(pxout,pyout);
+	    	}
+	    	GeometryFactory fact = new GeometryFactory();
+	    	if(geometry instanceof Point && coordsout.length==1){
+	    		targetGeometry = fact.createPoint(coordsout[0]);
+	    	}else if(geometry instanceof LineString){
+	    		targetGeometry = fact.createLineString(coordsout);
+	    	}else if (geometry instanceof Polygon){
+	    		 LinearRing linear = new GeometryFactory().createLinearRing(coordsout);
+	    		 targetGeometry =  new Polygon(linear, null, fact);
+	    	}
     	}
-    	GeometryFactory fact = new GeometryFactory();
-    	if(geometry instanceof Point && coordsout.length==1){
-    		geomout = fact.createPoint(coordsout[0]);
-    	}else if(geometry instanceof LineString){
-    		geomout = fact.createLineString(coordsout);
-    	}else if (geometry instanceof Polygon){
-    		 LinearRing linear = new GeometryFactory().createLinearRing(coordsout);
-    		 geomout =  new Polygon(linear, null, fact);
-    	}
-    	return geomout;
+    	return targetGeometry;
     	
 	}
 	Map<String,Object>propertiesToAttributes(Collection<Property>properties){
@@ -185,7 +217,7 @@ public class VectorTile {
     	
     }
 	
-	public static ReferencedEnvelope tileAddressToBBox(int z, int x, int y, CoordinateReferenceSystem targetCRS) {
+	public static ReferencedEnvelope tileAddressToBBox(int z, int x, int y, CoordinateReferenceSystem targetCRS) throws NoSuchAuthorityCodeException, FactoryException, TransformException {
 		Coordinate min = convertTileCoordsToMapCoords(z, x*tilesize, y*tilesize);
 		Coordinate max = convertTileCoordsToMapCoords(z, (x+1)*tilesize, (y+1)*tilesize);
 		/* From http://www.maptiler.org/google-maps-coordinates-tile-bounds-projection/
@@ -202,7 +234,9 @@ public class VectorTile {
 	        self.originShift = 2 * math.pi * 6378137 / 2.0
 	        # 20037508.342789244
 		        */
-	    return new ReferencedEnvelope(min.x, min.y, max.x, max.y, targetCRS);
+		CoordinateReferenceSystem googleCRS = CRS.decode("EPSG:900913");
+		ReferencedEnvelope googleenv = new ReferencedEnvelope(min.x, max.x, min.y, max.y, googleCRS);
+	    return googleenv.transform(targetCRS, true);
 
 	}
 }

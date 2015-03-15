@@ -24,6 +24,7 @@ import org.geoserver.rest.util.RESTUtils;
 import org.geotools.data.FeatureSource;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.factory.CommonFactoryFinder;
+import org.geotools.factory.GeoTools;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.CRS;
@@ -73,9 +74,15 @@ public class HelloResource extends AbstractResource {
 		FeatureSource<? extends FeatureType, ? extends Feature> source = 
 		          fti.getFeatureSource(null,null);
        // FeatureCollection<? extends FeatureType, ? extends Feature> features = source.getFeatures(filter);
-		FeatureCollection fc = grabFeaturesInBoundingBox(source,z,x,y);
+		
+		FeatureType schema = source.getSchema();
+		// String geometryPropertyName = schema.getGeometryDescriptor().getLocalName();
+		 
+	    CoordinateReferenceSystem srcCRS = schema.getGeometryDescriptor()
+	            .getCoordinateReferenceSystem();
+	    FeatureCollection fc = grabFeaturesInBoundingBox(source,z,x,y);
 		VectorTile vt = new VectorTile();
-		vt.add(fc, name, x, y, z);
+		vt.add(fc,srcCRS, name, x, y, z);
 	       //InputStream temp = new FileInputStream(vt.getFile());
 	       
 	        
@@ -86,7 +93,7 @@ public class HelloResource extends AbstractResource {
   
 		    
 	       getResponse().setEntity(rep);
-	        vt.getFile().delete();
+	    //    vt.getFile().delete();
 	} catch (IOException e) {
 		// TODO Auto-generated catch block
 		e.printStackTrace();
@@ -97,20 +104,22 @@ public class HelloResource extends AbstractResource {
 
       
 
-      //transform the string "Hello World" to the appropriate response
-      getResponse().setEntity(format.toRepresentation("Hello World: "+x));
+      //transform the string "Hello World" to the appropriate responseabuja.osm-line
+     // getResponse().setEntity(format.toRepresentation("Hello World: "+x));
    }
    
    SimpleFeatureCollection grabFeaturesInBoundingBox(FeatureSource featureSource, int z, int x, int y)
 	        throws Exception {
-	    FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2();
+	    FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2(GeoTools.getDefaultHints());
 	    FeatureType schema = featureSource.getSchema();
 	    
 	    // usually "THE_GEOM" for shapefiles
 	    String geometryPropertyName = schema.getGeometryDescriptor().getLocalName();
-	    //CoordinateReferenceSystem targetCRS = schema.getGeometryDescriptor()
-	          //  .getCoordinateReferenceSystem();
-	    CoordinateReferenceSystem targetCRS = CRS.decode("EPSG:900913");
+	    CoordinateReferenceSystem targetCRS = schema.getGeometryDescriptor()
+	            .getCoordinateReferenceSystem();
+	  //  CoordinateReferenceSystem targetCRS = schema.getGeometryDescriptor()
+	  //          .getCoordinateReferenceSystem();
+	    //CoordinateReferenceSystem targetCRS = CRS.decode("EPSG:900913");
 	    
 	    
 	    
@@ -118,7 +127,8 @@ public class HelloResource extends AbstractResource {
 	    ReferencedEnvelope bbox = VectorTile.tileAddressToBBox(z,x,y, targetCRS);
 	    
 	    Filter filter = ff.bbox(ff.property(geometryPropertyName), bbox);
-	    return (SimpleFeatureCollection) featureSource.getFeatures(filter);
+	    SimpleFeatureCollection sfc =  (SimpleFeatureCollection) featureSource.getFeatures(filter);
+	    return sfc;
 	}
 
 

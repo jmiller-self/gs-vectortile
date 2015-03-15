@@ -6,9 +6,9 @@
  -->
 <!DOCTYPE beans PUBLIC "-//SPRING//DTD BEAN//EN" "http://www.springframework.org/dtd/spring-beans.dtd">
 <beans>
-    <bean id="geopkgGetFeatureOutputFormat" class="org.geoserver.vectortile.VectorTileGetFeatureOutputFormat">
+   <!--  <bean id="geopkgGetFeatureOutputFormat" class="org.geoserver.vectortile.VectorTileGetFeatureOutputFormat">
       <constructor-arg ref="geoServer" />
-    </bean>
+    </bean> -->
     
         <bean id="hello" class="org.geoserver.vectortile.HelloResource">
         	<constructor-arg ref="geoServer"/>
