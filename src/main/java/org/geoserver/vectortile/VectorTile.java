@@ -7,9 +7,11 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 import no.ecc.vectortile.VectorTileEncoder;
@@ -107,13 +109,15 @@ public class VectorTile {
 	// Add one or more features with a layer name, a Map with attributes and a JTS Geometry. 
 	// The Geometry uses (0,0) in lower left and (256,256) in upper right.
         SimpleFeatureIterator it = features.features();
+        List<Geometry>geoms = new ArrayList<Geometry>();
         while (it.hasNext()){
         	SimpleFeature sf = it.next();
         	Collection<Property>properties = sf.getProperties();
         	Map<String,Object>attributes = propertiesToAttributes(properties);
         	Geometry geometry = (Geometry) sf.getDefaultGeometry();
-        	Geometry tilegeometry = convertMapCoordsToTileCoords(geometry,z,sourceCRS);
+        	Geometry tilegeometry = convertMapCoordsToTileCoords(geometry,x,y,z,sourceCRS);
         	encoder.addFeature(layerName, attributes, tilegeometry); 
+        	geoms.add(tilegeometry);
         }
 			
 		
@@ -127,8 +131,8 @@ public class VectorTile {
     
 
 	public static int tilesize = 256;
-   public static double originShift = 2 * Math.PI * 6378137 / 2.0;
-    public static double initialResolution = 2 * Math.PI * 6378137 /tilesize;
+   public static double originShift = 2 * Math.PI * 6378137 / 2.0; //20037508.342789244
+    public static double initialResolution = 2 * Math.PI * 6378137 /tilesize;//156543.03392804097
     public static double resolution(int z){
     	return initialResolution/(Math.pow(2, z));
     }
@@ -146,7 +150,7 @@ public class VectorTile {
     	return new Coordinate(mx,my);
     	
     }
-    public static Geometry convertMapCoordsToTileCoords(Geometry geometry, 
+    public static Geometry convertMapCoordsToTileCoords(Geometry geometry,int x, int y, 
 			int z,CoordinateReferenceSystem sourceCRS)  {
     	//need to make sure these are 900913
     	Geometry targetGeometry = null;
@@ -180,25 +184,34 @@ public class VectorTile {
        // px = (mx + self.originShift) / res
        // py = (my + self.originShift) / res
     	
+//        def PixelsToTile(self, px, py):
+//            "Returns a tile covering region in given pixel coordinates"
+//
+//            tx = int( math.ceil( px / float(self.tileSize) ) - 1 )
+//            ty = int( math.ceil( py / float(self.tileSize) ) - 1 )
+//            return tx, ty
+    	
     	if(targetGeometry!=null){
     	
 	    	double res = resolution(z);
-	    	Coordinate[]coords = geometry.getCoordinates();
+	    	Coordinate[]coords = targetGeometry.getCoordinates();
 	    	Coordinate[]coordsout = new Coordinate[coords.length];
 	    	for(int i=0;i<coords.length;i++){
 	    		Coordinate coord = coords[i];
 	    		double px = coord.x;
 	    		double py = coord.y;
-	    		double pxout = (px + originShift)/res;
-	    		double pyout = (py+originShift)/res;
-	    		coordsout[i] = new Coordinate(pxout,pyout);
+	    		double pxout = (px + originShift)/res;//convert to zoom level pixels
+	    		double pyout = (py+originShift)/res;//convert to zoom level pixels
+	    		double txout = pxout - (x*tilesize);//convert to tile coordinates
+	    		double tyout = pyout - (y*tilesize);//convert to tile coordinates
+	    		coordsout[i] = new Coordinate(txout,tyout);
 	    	}
 	    	GeometryFactory fact = new GeometryFactory();
-	    	if(geometry instanceof Point && coordsout.length==1){
+	    	if(targetGeometry instanceof Point && coordsout.length==1){
 	    		targetGeometry = fact.createPoint(coordsout[0]);
-	    	}else if(geometry instanceof LineString){
+	    	}else if(targetGeometry instanceof LineString){
 	    		targetGeometry = fact.createLineString(coordsout);
-	    	}else if (geometry instanceof Polygon){
+	    	}else if (targetGeometry instanceof Polygon){
 	    		 LinearRing linear = new GeometryFactory().createLinearRing(coordsout);
 	    		 targetGeometry =  new Polygon(linear, null, fact);
 	    	}
