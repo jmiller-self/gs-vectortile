@@ -224,7 +224,8 @@ public class VectorTile {
     	Iterator<Property>it = properties.iterator();
     	while(it.hasNext()){
     		Property property = it.next();
-    		attributes.put(property.getName().getLocalPart(), property.getValue());
+    		if(!(property.getValue() instanceof Geometry))
+    			attributes.put(property.getName().getLocalPart(), property.getValue());
     	}
     	return attributes;
     	
