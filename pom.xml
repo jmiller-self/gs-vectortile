@@ -98,6 +98,14 @@
 	    <id>ECC</id>
 	    <url>https://github.com/ElectronicChartCentre/ecc-mvn-repo/raw/master/releases</url>
 	</repository>
+	  <repository>
+   <id>boundless</id>
+   <name>Boundless Maven Repository</name>
+   <url>http://repo.boundlessgeo.com/main</url>
+   <snapshots>
+     <enabled>true</enabled>
+   </snapshots>
+  </repository>
  </repositories>
 
  <build>

@@ -39,6 +39,7 @@ import org.opengis.referencing.operation.TransformException;
 
 import com.google.common.collect.Lists;
 import com.vividsolutions.jts.geom.Coordinate;
+import com.vividsolutions.jts.geom.CoordinateFilter;
 import com.vividsolutions.jts.geom.Geometry;
 import com.vividsolutions.jts.geom.GeometryFactory;
 import com.vividsolutions.jts.geom.LineString;
@@ -193,7 +194,7 @@ public class VectorTile {
     	
     	if(targetGeometry!=null){
     	
-	    	double res = resolution(z);
+	    	/*double res = resolution(z);
 	    	Coordinate[]coords = targetGeometry.getCoordinates();
 	    	Coordinate[]coordsout = new Coordinate[coords.length];
 	    	for(int i=0;i<coords.length;i++){
@@ -205,8 +206,9 @@ public class VectorTile {
 	    		double txout = pxout - (x*tilesize);//convert to tile coordinates
 	    		double tyout = pyout - (y*tilesize);//convert to tile coordinates
 	    		coordsout[i] = new Coordinate(txout,tyout);
-	    	}
-	    	GeometryFactory fact = new GeometryFactory();
+	    		
+	    	}*/
+	    	/*GeometryFactory fact = new GeometryFactory();
 	    	if(targetGeometry instanceof Point && coordsout.length==1){
 	    		targetGeometry = fact.createPoint(coordsout[0]);
 	    	}else if(targetGeometry instanceof LineString){
@@ -214,7 +216,10 @@ public class VectorTile {
 	    	}else if (targetGeometry instanceof Polygon){
 	    		 LinearRing linear = new GeometryFactory().createLinearRing(coordsout);
 	    		 targetGeometry =  new Polygon(linear, null, fact);
-	    	}
+	    	}*/
+    		CoordinateFilter cf = new VectorTileCoordinateFilter(x,y,z);
+    		targetGeometry.apply(cf);
+	    	
     	}
     	return targetGeometry;
     	
