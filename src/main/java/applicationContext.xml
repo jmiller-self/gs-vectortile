@@ -18,7 +18,7 @@
        <property name="routes">
           <map>
             <entry>
-              <key><value>/hello/{name}/{z}/{x}/{y}.{format}</value></key>
+              <key><value>/vectortile/{name}/{z}/{x}/{y}.{format}</value></key>
               <value>hello</value>
             </entry>
          </map>
