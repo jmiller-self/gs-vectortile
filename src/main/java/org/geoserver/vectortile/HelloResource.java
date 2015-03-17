@@ -1,5 +1,6 @@
 package org.geoserver.vectortile;
 
+import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -70,8 +71,13 @@ public class HelloResource extends AbstractResource {
       String name = RESTUtils.getAttribute(getRequest(), "name");
       final Catalog catalog = geoserver.getCatalog();
       FeatureTypeInfo fti = catalog.getFeatureTypeByName(name);
+      VectorTile vt = null;
+      InputRepresentation rep = null;
+      FeatureSource<? extends FeatureType, ? extends Feature> source = null;
+      FeatureCollection fc = null;
       try {
-		FeatureSource<? extends FeatureType, ? extends Feature> source = 
+    	  vt = new VectorTile();
+		 source = 
 		          fti.getFeatureSource(null,null);
        // FeatureCollection<? extends FeatureType, ? extends Feature> features = source.getFeatures(filter);
 		
@@ -80,8 +86,8 @@ public class HelloResource extends AbstractResource {
 		 
 	    CoordinateReferenceSystem srcCRS = schema.getGeometryDescriptor()
 	            .getCoordinateReferenceSystem();
-	    FeatureCollection fc = grabFeaturesInBoundingBox(source,z,x,y);
-		VectorTile vt = new VectorTile();
+	    fc = grabFeaturesInBoundingBox(source,z,x,y);
+		
 		vt.add(fc,srcCRS, name, x, y, z);
 	       //InputStream temp = new FileInputStream(vt.getFile());
 	       
@@ -89,10 +95,13 @@ public class HelloResource extends AbstractResource {
 	      // Representation representation = new InputRepresentation(temp, MediaType.APPLICATION_OCTET_STREAM);
 		 
 		 
-		    FileRepresentation rep = new FileRepresentation(vt.getFile(), MediaType.APPLICATION_OCTET_STREAM, -1); 
+	    //rep = new FileRepresentation(vt.getFile(), MediaType.APPLICATION_OCTET_STREAM, -1); 
+		
   
 		    
-	       getResponse().setEntity(rep);
+	       getResponse().setEntity(vt);
+	      // rep.getStream().close();
+	       
 	    //    vt.getFile().delete();
 	} catch (IOException e) {
 		// TODO Auto-generated catch block
@@ -100,6 +109,17 @@ public class HelloResource extends AbstractResource {
 	} catch (Exception e) {
 		// TODO Auto-generated catch block
 		e.printStackTrace();
+	}finally{
+		/*if(vt!=null)
+			try {
+				vt.getStream().close();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}*/
+		
+		
+
 	}
 
       

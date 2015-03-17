@@ -6,6 +6,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -36,6 +37,8 @@ import org.opengis.referencing.NoSuchAuthorityCodeException;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.opengis.referencing.operation.MathTransform;
 import org.opengis.referencing.operation.TransformException;
+import org.restlet.data.MediaType;
+import org.restlet.resource.OutputRepresentation;
 
 import com.google.common.collect.Lists;
 import com.vividsolutions.jts.geom.Coordinate;
@@ -47,7 +50,7 @@ import com.vividsolutions.jts.geom.LinearRing;
 import com.vividsolutions.jts.geom.Point;
 import com.vividsolutions.jts.geom.Polygon;
 
-public class VectorTile {
+public class VectorTile extends OutputRepresentation {
 	 /**
      * package file extension
      */
@@ -64,8 +67,9 @@ public class VectorTile {
     public static final Collection<String> NAMES = Lists.newArrayList("vectortile", "vtile", "pbf");
     
     public File file;
-    public VectorTile() throws IOException{
-    	file = File.createTempFile("vectortile", "pbf");
+    private byte[] bytes;
+    public VectorTile(){ 
+    	super(MediaType.APPLICATION_OCTET_STREAM);
     }
 	public File getFile() {
 		return file;
@@ -79,6 +83,7 @@ public class VectorTile {
 			fos = new FileOutputStream(file);
 			fos.write(encoded);	
 			fos.flush();
+			fos.close();
 		} catch (FileNotFoundException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -87,6 +92,7 @@ public class VectorTile {
 			e.printStackTrace();
 		}finally{
 			try {
+				
 				fos.close();
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
@@ -125,7 +131,8 @@ public class VectorTile {
 
 		// Finally, get the byte array
 		byte[] encoded = encoder.encode();
-		add(encoded);
+		//add(encoded);
+		bytes = encoded;
 		
 
 	}
@@ -133,11 +140,12 @@ public class VectorTile {
 
 	public static int tilesize = 256;
    public static double originShift = 2 * Math.PI * 6378137 / 2.0; //20037508.342789244
+	//public static double originShift = 20037508.342789244;
     public static double initialResolution = 2 * Math.PI * 6378137 /tilesize;//156543.03392804097
     public static double resolution(int z){
     	return initialResolution/(Math.pow(2, z));
     }
-    public static Coordinate convertTileCoordsToMapCoords(int z,double x, double y){
+    public static Coordinate convertTileCoordsToMapCoordsGoogle(int z,double x, double y){
     	 /*def PixelsToMeters(self, px, py, zoom):
  	        "Converts pixel coordinates in given zoom level of pyramid to EPSG:900913"
 
@@ -147,10 +155,24 @@ public class VectorTile {
  	        return mx, my*/
     	double res = resolution(z);
     	double mx = x * res - originShift;
-    	double my = y * res - originShift;
+    	double my = (Math.pow(2, z)-1)-(y * res - originShift);
     	return new Coordinate(mx,my);
     	
     }
+    public static Coordinate convertTileCoordsToMapCoordsTMS(int z,double x, double y){
+   	 /*def PixelsToMeters(self, px, py, zoom):
+	        "Converts pixel coordinates in given zoom level of pyramid to EPSG:900913"
+
+	        res = self.Resolution( zoom )
+	        mx = px * res - self.originShift
+	        my = py * res - self.originShift
+	        return mx, my*/
+   	double res = resolution(z);
+   	double mx = x * res - originShift;
+   	double my = y * res - originShift;
+   	return new Coordinate(mx,my);
+   	
+   }
     public static Geometry convertMapCoordsToTileCoords(Geometry geometry,int x, int y, 
 			int z,CoordinateReferenceSystem sourceCRS)  {
     	//need to make sure these are 900913
@@ -237,8 +259,9 @@ public class VectorTile {
     }
 	
 	public static ReferencedEnvelope tileAddressToBBox(int z, int x, int y, CoordinateReferenceSystem targetCRS) throws NoSuchAuthorityCodeException, FactoryException, TransformException {
-		Coordinate min = convertTileCoordsToMapCoords(z, x*tilesize, y*tilesize);
-		Coordinate max = convertTileCoordsToMapCoords(z, (x+1)*tilesize, (y+1)*tilesize);
+		int tmsy = (int)(Math.pow(2, z) - y - 1);
+		Coordinate min = convertTileCoordsToMapCoordsTMS(z, x*tilesize, tmsy*tilesize);
+		Coordinate max = convertTileCoordsToMapCoordsTMS(z, (x+1)*tilesize, (tmsy+1)*tilesize);
 		/* From http://www.maptiler.org/google-maps-coordinates-tile-bounds-projection/
 		 * minx, miny = self.PixelsToMeters( tx*self.tileSize, ty*self.tileSize, zoom )
 		        maxx, maxy = self.PixelsToMeters( (tx+1)*self.tileSize, (ty+1)*self.tileSize, zoom )
@@ -257,5 +280,16 @@ public class VectorTile {
 		ReferencedEnvelope googleenv = new ReferencedEnvelope(min.x, max.x, min.y, max.y, googleCRS);
 	    return googleenv.transform(targetCRS, true);
 
+	}
+	@Override
+	public void write(OutputStream os) throws IOException {
+		os.write(bytes);
+		
+	}
+	public byte[] getBytes() {
+		return bytes;
+	}
+	public void setBytes(byte[] bytes) {
+		this.bytes = bytes;
 	}
 }
